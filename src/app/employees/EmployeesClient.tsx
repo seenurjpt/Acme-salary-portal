@@ -79,7 +79,7 @@ export function EmployeesClient({ countries, departments, levels, currencies }: 
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Employees</h1>
           <p className="text-sm text-slate-500">{total.toLocaleString()} matching records</p>
