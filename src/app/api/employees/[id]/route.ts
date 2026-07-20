@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployee, updateEmployee, deleteEmployee } from "@/lib/employees";
 import { updateEmployeeSchema } from "@/lib/validators";
-import { requireActor, unauthorized, badRequest } from "@/lib/api-helpers";
+import { requireActor, unauthorized, badRequest, conflict, isUniqueViolation } from "@/lib/api-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await requireActor();
@@ -26,7 +26,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const employee = await updateEmployee(id, parsed.data, actor);
     return NextResponse.json(employee);
-  } catch {
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return conflict("Another employee already uses this email.");
+    }
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 }

@@ -172,7 +172,24 @@ export type CreateEmployeeInput = {
   currency: string;
 };
 
+/**
+ * Soft-deleted employees shouldn't block their email from being reused. If the address is
+ * held by an inactive record, rename that record's email (prefixed with its id, so it stays
+ * unique and traceable) to release the address. Active holders are left alone — the unique
+ * constraint then correctly rejects the duplicate.
+ */
+async function releaseEmailIfSoftDeleted(email: string) {
+  const holder = await prisma.employee.findUnique({ where: { email } });
+  if (holder && !holder.isActive) {
+    await prisma.employee.update({
+      where: { id: holder.id },
+      data: { email: `deleted.${holder.id}.${holder.email}` },
+    });
+  }
+}
+
 export async function createEmployee(input: CreateEmployeeInput, actor: string) {
+  await releaseEmailIfSoftDeleted(input.email);
   const employee = await prisma.employee.create({
     data: {
       name: input.name,
@@ -209,6 +226,9 @@ export type UpdateEmployeeInput = Partial<Omit<CreateEmployeeInput, "salary" | "
 export async function updateEmployee(id: string, input: UpdateEmployeeInput, actor: string) {
   const before = await getEmployee(id);
   if (!before) throw new Error("Employee not found");
+  if (input.email && input.email !== before.email) {
+    await releaseEmailIfSoftDeleted(input.email);
+  }
 
   const employee = await prisma.$transaction(async (tx) => {
     await tx.employee.update({

@@ -14,3 +14,12 @@ export function unauthorized() {
 export function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
+
+/** True when a thrown error is Prisma's unique-constraint violation (P2002). */
+export function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002";
+}
+
+export function conflict(message: string) {
+  return NextResponse.json({ error: message }, { status: 409 });
+}

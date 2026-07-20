@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listEmployees, createEmployee } from "@/lib/employees";
 import { createEmployeeSchema } from "@/lib/validators";
-import { requireActor, unauthorized, badRequest } from "@/lib/api-helpers";
+import { requireActor, unauthorized, badRequest, conflict, isUniqueViolation } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   const actor = await requireActor();
@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
     return badRequest(parsed.error.issues.map((i) => i.message).join("; "));
   }
 
-  const employee = await createEmployee(parsed.data, actor);
-  return NextResponse.json(employee, { status: 201 });
+  try {
+    const employee = await createEmployee(parsed.data, actor);
+    return NextResponse.json(employee, { status: 201 });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return conflict("An employee with this email already exists. Use a different email.");
+    }
+    throw e;
+  }
 }
