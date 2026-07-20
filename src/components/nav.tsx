@@ -15,6 +15,7 @@ import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { cn } from "./ui";
 import { AskWidget } from "./ask-widget";
+import { CurrencySelect } from "./currency";
 
 const links = [
   { href: "/", label: "Dashboard", icon: ChartIcon },
@@ -65,14 +66,30 @@ export function Shell({ children }: { children: React.ReactNode }) {
           collapsed ? "md:w-16" : "md:w-60",
         )}
       >
-        {/* Brand */}
+        {/* Brand + collapse toggle (icon-only, desktop) */}
         <div className={cn("flex h-14 items-center border-b border-slate-100 px-4", collapsed && "md:justify-center md:px-0")}>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white",
+              collapsed && "md:hidden",
+            )}
+          >
             A
           </span>
           <span className={cn("ml-2.5 truncate text-sm font-semibold text-slate-900", collapsed && "md:hidden")}>
             ACME · Salaries
           </span>
+          <button
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={cn(
+              "ml-auto hidden shrink-0 rounded-md p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 md:flex",
+              collapsed && "md:ml-0",
+            )}
+          >
+            <ChevronIcon flipped={collapsed} />
+          </button>
         </div>
 
         {/* Nav links */}
@@ -99,21 +116,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-
-        {/* Collapse toggle (desktop only) */}
-        <div className="hidden border-t border-slate-100 p-2.5 md:block">
-          <button
-            onClick={toggleCollapsed}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={cn(
-              "flex w-full items-center rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-50 hover:text-slate-700",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <ChevronIcon flipped={collapsed} />
-            <span className={cn("ml-3", collapsed && "hidden")}>Collapse</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main column, shifted right of the sidebar on desktop */}
@@ -136,6 +138,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
 
           <div className="ml-auto flex items-center gap-3">
+            <CurrencySelect />
             <span className="hidden text-xs text-slate-400 sm:block">hr@acme.com</span>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}

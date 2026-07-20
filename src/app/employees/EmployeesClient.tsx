@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Input, Select, Card, Badge, Spinner, Label } from "@/components/ui";
-import { formatMoney, formatDate } from "@/lib/format";
+import { useCurrency } from "@/components/currency";
 import { EmployeeDialog } from "./EmployeeDialog";
 
 type Row = {
@@ -26,6 +26,7 @@ type Props = {
 };
 
 export function EmployeesClient({ countries, departments, levels, currencies }: Props) {
+  const { formatLocal } = useCurrency();
   const [search, setSearch] = useState("");
   const [country, setCountry] = useState("");
   const [department, setDepartment] = useState("");
@@ -158,7 +159,7 @@ export function EmployeesClient({ countries, departments, levels, currencies }: 
                     <td className="px-4 text-slate-600">{r.department}</td>
                     <td className="px-4"><Badge>{r.level}</Badge></td>
                     <td className="px-4 font-medium text-slate-800">
-                      {formatMoney(r.salary, r.currency ?? "USD")}
+                      {formatLocal(r.salary, r.currency)}
                     </td>
                     <td className="px-4 text-right">
                       <button

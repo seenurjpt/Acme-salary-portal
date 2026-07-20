@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Input, Select, Label } from "@/components/ui";
 import { formatMoney, formatDate } from "@/lib/format";
+import { useCurrency } from "@/components/currency";
 
 type Props = {
   employeeId: string | null;
@@ -55,6 +56,7 @@ export function EmployeeDialog({
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const { currency: displayCurrency, formatLocal } = useCurrency();
 
   useEffect(() => {
     if (!employeeId) return;
@@ -197,7 +199,13 @@ export function EmployeeDialog({
                     <div key={h.id} className="flex justify-between text-sm">
                       <span className="text-slate-500">{formatDate(h.effectiveDate)}</span>
                       <span className={h.isCurrent ? "font-medium text-slate-800" : "text-slate-400"}>
-                        {formatMoney(h.amount, h.currency)} {h.isCurrent && "(current)"}
+                        {formatMoney(h.amount, h.currency)}
+                        {h.currency !== displayCurrency && (
+                          <span className="ml-1 text-xs text-slate-400">
+                            ≈ {formatLocal(h.amount, h.currency)}
+                          </span>
+                        )}{" "}
+                        {h.isCurrent && "(current)"}
                       </span>
                     </div>
                   ))}

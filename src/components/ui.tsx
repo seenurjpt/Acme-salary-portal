@@ -58,7 +58,7 @@ export function Card({ children, className }: { children: React.ReactNode; class
   );
 }
 
-export function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+export function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
   return (
     <Card>
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>

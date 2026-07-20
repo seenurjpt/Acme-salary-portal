@@ -2,11 +2,13 @@ import { getSalaryRowsForAggregation } from "@/lib/employees";
 import { buildDashboard } from "@/lib/analytics";
 import { Shell } from "@/components/nav";
 import { Stat, Card } from "@/components/ui";
-import { formatMoney } from "@/lib/format";
+import { Money } from "@/components/currency";
 import { GroupBarChart, DistributionChart } from "@/components/charts";
 
 export const dynamic = "force-dynamic";
 
+// Server component: aggregates are computed in USD; all money rendering goes through the
+// client-side <Money>/chart components so the user's display-currency choice applies.
 export default async function DashboardPage() {
   const rows = await getSalaryRowsForAggregation();
   const d = buildDashboard(rows);
@@ -16,15 +18,15 @@ export default async function DashboardPage() {
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-slate-900">Pay overview</h1>
         <p className="text-sm text-slate-500">
-          All figures normalized to USD for cross-country comparison.
+          Cross-country figures, shown in your selected display currency.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Stat label="Headcount" value={d.headcount.toLocaleString()} />
-        <Stat label="Average salary" value={formatMoney(d.overall.avg)} sub="USD, all employees" />
-        <Stat label="Median salary" value={formatMoney(d.overall.median)} sub="USD" />
-        <Stat label="Payroll (annual)" value={formatMoney(d.overall.sum)} sub="USD, total" />
+        <Stat label="Average salary" value={<Money usd={d.overall.avg} />} sub="all employees" />
+        <Stat label="Median salary" value={<Money usd={d.overall.median} />} />
+        <Stat label="Payroll (annual)" value={<Money usd={d.overall.sum} />} sub="total" />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -42,7 +44,9 @@ export default async function DashboardPage() {
         </Card>
         <Card>
           <h2 className="mb-3 text-sm font-semibold text-slate-800">Salary distribution</h2>
-          <DistributionChart data={d.distribution.map((b) => ({ name: b.label, value: b.count }))} />
+          <DistributionChart
+            data={d.distribution.map((b) => ({ min: b.min, max: b.max, count: b.count }))}
+          />
         </Card>
       </div>
 
@@ -66,10 +70,10 @@ export default async function DashboardPage() {
                   <tr key={g.group} className="border-t border-slate-100">
                     <td className="py-2 font-medium text-slate-700">{g.group}</td>
                     <td>{g.count.toLocaleString()}</td>
-                    <td>{formatMoney(g.min)}</td>
-                    <td>{formatMoney(g.median)}</td>
-                    <td>{formatMoney(g.avg)}</td>
-                    <td>{formatMoney(g.max)}</td>
+                    <td><Money usd={g.min} /></td>
+                    <td><Money usd={g.median} /></td>
+                    <td><Money usd={g.avg} /></td>
+                    <td><Money usd={g.max} /></td>
                   </tr>
                 ))}
               </tbody>
