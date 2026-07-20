@@ -1,0 +1,64 @@
+// Salary Management — data model
+// SQLite for dev/demo. To move to Postgres: change provider to "postgresql" and the
+// DATABASE_URL; the rest of the schema is portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  country    String // ISO-ish country name, e.g. "Germany"
+  department String
+  jobTitle   String
+  level      String // "L1".."L5" — seniority band
+  hireDate   DateTime
+  isActive   Boolean   @default(true) // soft-delete flag
+
+  salaries SalaryRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([country])
+  @@index([department])
+  @@index([level])
+  @@index([isActive])
+}
+
+model SalaryRecord {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  amount        Float // amount in `currency`
+  currency      String // ISO 4217, e.g. "EUR"
+  effectiveDate DateTime
+  isCurrent     Boolean  @default(true) // exactly one current record per employee
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([isCurrent])
+}
+
+// Audit trail — money data must be traceable. Every mutation writes a row here.
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String // "Employee" | "SalaryRecord"
+  entityId  String
+  action    String // "create" | "update" | "delete"
+  before    String? // JSON snapshot before change
+  after     String? // JSON snapshot after change
+  actor     String // who made the change (HR user email)
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
