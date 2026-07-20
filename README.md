@@ -16,7 +16,7 @@ hand-built UI components. See [`REQUIREMENTS.md`](REQUIREMENTS.md),
   level; pay-band table; salary distribution. All figures normalized to **USD** for
   cross-country comparison.
 - **Ask (natural-language Q&A)** — ask *"average salary in Germany"* or *"compare
-  Engineering and Sales"* in plain English. Powered by Claude when an API key is present,
+  Engineering and Sales"* in plain English. Powered by Gemini when an API key is present,
   with a **deterministic local parser fallback** so it works offline.
 - **Auth** — single HR-Manager role (credentials).
 
@@ -40,8 +40,10 @@ Log in with **hr@acme.com / password123** (configurable in `.env`).
 | `npm run typecheck` | TypeScript check |
 
 ## Enabling AI Q&A (optional)
-Set `ANTHROPIC_API_KEY` in `.env`. Without it, the Ask feature uses a local keyword parser
-that covers the common question shapes. Either way, the LLM never runs SQL — it only
+Set `GEMINI_API_KEY` in `.env` (Gemini has a free tier — grab a key at
+[aistudio.google.com](https://aistudio.google.com)). Without it, the Ask feature uses a
+local keyword parser that covers the common question shapes. Either way,
+the LLM never runs SQL — it only
 proposes a **whitelisted, Zod-validated query intent** that runs through the same tested
 aggregation engine the dashboard uses. (See [`ARCHITECTURE.md`](ARCHITECTURE.md) → *AI safety*.)
 
@@ -63,7 +65,15 @@ src/components/    UI primitives, nav, charts
 docs/              AI usage log + trade-off notes
 ```
 
-## Deployment
-Runs on any Node host. For a persistent-write deploy (e.g. Vercel, whose filesystem is
-ephemeral), point `DATABASE_URL` at Postgres or Turso — changing the Prisma `provider` and
-URL is the only change required; the schema and queries are portable.
+## Deployment (Vercel + Neon)
+The app deploys to **Vercel** with the database on **Neon** (serverless Postgres, free tier).
+
+1. **Neon**: create a project at [neon.tech](https://neon.tech), copy the pooled connection
+   string into `DATABASE_URL`, then `npx prisma db push && npm run db:seed`.
+2. **Vercel**: import the GitHub repo (Next.js auto-detected; the build script already runs
+   `prisma generate`) and set the environment variables:
+   `DATABASE_URL`, `AUTH_SECRET` (`openssl rand -base64 32`), `HR_EMAIL`, `HR_PASSWORD`,
+   and optionally `GEMINI_API_KEY` for the AI path of Ask.
+
+The schema is portable — a fully-offline local demo can switch back to SQLite by setting
+`provider = "sqlite"` in `prisma/schema.prisma` and `DATABASE_URL="file:./dev.db"`.

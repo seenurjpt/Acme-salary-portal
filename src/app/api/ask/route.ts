@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSalaryRowsForAggregation } from "@/lib/employees";
-import { runIntent } from "@/lib/analytics";
+import { getSalaryRowsForAggregation, findEmployeesByName } from "@/lib/employees";
+import { runIntent, runLookup } from "@/lib/analytics";
 import { translateQuestion } from "@/lib/ai";
 import { askSchema } from "@/lib/validators";
 import { requireActor, unauthorized, badRequest } from "@/lib/api-helpers";
@@ -22,6 +22,12 @@ export async function POST(req: NextRequest) {
   const translation = await translateQuestion(parsed.data.question);
   if (!translation.ok) {
     return NextResponse.json({ error: translation.error }, { status: 422 });
+  }
+
+  if (translation.intent.kind === "lookup") {
+    const matches = await findEmployeesByName(translation.intent.name, translation.intent.filter);
+    const answer = runLookup(translation.intent, matches);
+    return NextResponse.json({ ...answer, source: translation.source });
   }
 
   const rows = await getSalaryRowsForAggregation();

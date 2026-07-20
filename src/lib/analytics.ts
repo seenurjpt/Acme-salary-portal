@@ -16,7 +16,8 @@ import {
   type GroupStat,
   type Metric,
 } from "./aggregation";
-import type { QueryIntent } from "./query-intent";
+import { toBaseCurrency, BASE_CURRENCY } from "./reference";
+import type { QueryIntent, AggregateIntent, CompareIntent, LookupIntent } from "./query-intent";
 
 export type DashboardData = {
   overall: Omit<GroupStat, "group">;
@@ -56,8 +57,44 @@ export type QueryAnswer = {
   data: unknown;
 };
 
-/** Execute a validated QueryIntent against salary rows and produce a verifiable answer. */
-export function runIntent(rows: SalaryRow[], intent: QueryIntent): QueryAnswer {
+/** One employee match for the "lookup" intent — shaped by the caller, kept DB-agnostic here. */
+export type EmployeeLookupRow = {
+  name: string;
+  jobTitle: string;
+  department: string;
+  country: string;
+  level: string;
+  salary: number | null;
+  currency: string | null;
+};
+
+/** Format a "lookup" intent answer from pre-fetched employee matches (pure, testable). */
+export function runLookup(intent: LookupIntent, matches: EmployeeLookupRow[]): QueryAnswer {
+  if (matches.length === 0) {
+    return {
+      intent,
+      summary: `No active employee found matching "${intent.name}".`,
+      data: { matches: [] },
+    };
+  }
+  if (matches.length === 1) {
+    const e = matches[0];
+    const summary =
+      e.salary == null || e.currency == null
+        ? `${e.name} (${e.jobTitle}, ${e.department}, ${e.country}, ${e.level}) has no current salary record.`
+        : `${e.name} (${e.jobTitle}, ${e.department}, ${e.country}, ${e.level}) earns ${e.currency} ${e.salary.toLocaleString("en-US")}${
+            e.currency === BASE_CURRENCY ? "" : ` (~${fmt(Math.round(toBaseCurrency(e.salary, e.currency)))} ${BASE_CURRENCY})`
+          }.`;
+    return { intent, summary, data: e };
+  }
+  const summary = `Found ${matches.length} employees matching "${intent.name}": ${matches
+    .map((e) => `${e.name} (${e.department}, ${e.country})`)
+    .join(", ")}. Ask with a fuller name to narrow it down.`;
+  return { intent, summary, data: { matches } };
+}
+
+/** Execute a validated aggregate/compare intent against salary rows ("lookup" runs via runLookup). */
+export function runIntent(rows: SalaryRow[], intent: AggregateIntent | CompareIntent): QueryAnswer {
   if (intent.kind === "compare") {
     const cmp = compareGroups(rows, intent.groupBy, intent.groupA, intent.groupB, intent.metric);
     const dir = cmp.difference === 0 ? "the same as" : cmp.difference > 0 ? "higher than" : "lower than";

@@ -178,7 +178,7 @@ export function EmployeesClient({ countries, departments, levels, currencies }: 
 
       <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
         <span>
-          Page {page} of {totalPages}
+          Page {page} of {totalPages} · {total.toLocaleString()} employees ({pageSize} per page)
         </span>
         <div className="flex gap-2">
           <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

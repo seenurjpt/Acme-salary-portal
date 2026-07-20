@@ -1,13 +1,13 @@
 // Salary Management — data model
-// SQLite for dev/demo. To move to Postgres: change provider to "postgresql" and the
-// DATABASE_URL; the rest of the schema is portable.
+// Postgres (Neon) for dev + production. The schema is portable: switching back to
+// SQLite for a fully-offline demo is just provider = "sqlite" + a file: DATABASE_URL.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

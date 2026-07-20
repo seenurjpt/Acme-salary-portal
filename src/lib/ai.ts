@@ -2,7 +2,7 @@
  * NL → QueryIntent translation for the pay Q&A feature.
  *
  * Two strategies, tried in order:
- *  1. Claude (if ANTHROPIC_API_KEY is set) — flexible natural-language understanding.
+ *  1. Gemini (if GEMINI_API_KEY is set) — flexible natural-language understanding, free tier.
  *  2. A deterministic local parser — keyword/entity matching so the feature works offline,
  *     costs nothing, and keeps tests deterministic.
  *
@@ -16,7 +16,7 @@ import {
   DEPARTMENTS,
   LEVELS,
 } from "./reference";
-import { parseIntent, type QueryIntent } from "./query-intent";
+import { parseIntent, type QueryIntent, type AggregateIntent } from "./query-intent";
 
 const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
 
@@ -26,9 +26,9 @@ export type TranslateResult =
 
 /** Public entry: turn a question into a validated QueryIntent. */
 export async function translateQuestion(question: string): Promise<TranslateResult> {
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (process.env.GEMINI_API_KEY) {
     try {
-      const raw = await translateWithClaude(question);
+      const raw = await translateWithGemini(question);
       const parsed = parseIntent(raw);
       if (parsed.ok) return { ok: true, intent: parsed.intent, source: "ai" };
     } catch {
@@ -48,28 +48,49 @@ export async function translateQuestion(question: string): Promise<TranslateResu
   };
 }
 
-// --- Claude strategy -------------------------------------------------------
 const SYSTEM_PROMPT = `You translate an HR manager's question about salaries into a strict JSON QueryIntent.
 Output ONLY JSON, no prose. Schemas:
 Aggregate: {"kind":"aggregate","metric":"avg|median|min|max|count|sum","groupBy":"country|department|level"(optional),"filter":{"country":..,"department":..,"level":..}(optional)}
 Compare:   {"kind":"compare","metric":"avg|median|min|max|count|sum","groupBy":"country|department|level","groupA":"..","groupB":".."}
+Lookup:    {"kind":"lookup","name":"<employee name>","filter":{"country":..,"department":..,"level":..}(optional)}
+If the question is about ONE specific named person (e.g. "salary of Jane Doe"), use Lookup.
+Put any department/country/level qualifiers from the question into "filter" — they help
+disambiguate people who share a name.
 Allowed countries: ${COUNTRY_NAMES.join(", ")}.
 Allowed departments: ${DEPARTMENTS.join(", ")}.
 Allowed levels: ${LEVELS.join(", ")}.
 Use exact allowed spellings. If a question asks "how many", use metric "count".`;
 
-async function translateWithClaude(question: string): Promise<unknown> {
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const msg = await client.messages.create({
-    model: "claude-sonnet-5",
-    max_tokens: 400,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: question }],
-  });
-  const text = msg.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("");
+// --- Gemini strategy (free tier) -------------------------------------------
+// Plain REST call — no SDK dependency. Key from https://aistudio.google.com (free tier).
+async function translateWithGemini(question: string): Promise<unknown> {
+  // Default verified against the free tier (new AI Studio accounts only get quota on
+  // the gemini-3.x generation; 2.x models 404 or return 429 "limit: 0" for them).
+  const model = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite-preview";
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY!,
+      },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: question }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens: 400,
+        },
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text =
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   return JSON.parse(jsonMatch ? jsonMatch[0] : text);
 }
@@ -79,13 +100,25 @@ async function translateWithClaude(question: string): Promise<unknown> {
 export function translateLocally(question: string): unknown | null {
   const q = question.toLowerCase();
 
+  // Person lookup: "salary of <name>" — only when the target isn't a known group/generic word.
+  const lookup = q.match(/\b(?:salary|pay|compensation)\s+(?:of|for)\s+(.+)/);
+  if (lookup) {
+    const name = lookup[1].split(/\s+(?:who|in|at|from|per|by|across)\b|[,?.!]/)[0].trim();
+    const groupWords = [...DEPARTMENTS, ...COUNTRY_NAMES, ...LEVELS].map((g) => g.toLowerCase());
+    const isGroupOrGeneric =
+      groupWords.includes(name) ||
+      /\b(employees?|people|team|department|country|level|each|every|all|everyone)\b/.test(name) ||
+      /\band\b|\bvs\.?\b/.test(name);
+    if (name.length >= 2 && !isGroupOrGeneric) return { kind: "lookup", name };
+  }
+
   // Require at least one salary-related signal so we don't confidently answer nonsense
   // with a default. If nothing matches, return null and the UI asks the user to rephrase.
   const hasSalarySignal = /\b(salary|salaries|pay|paid|compensation|comp|wage|earn|how much|how many|headcount|employees?)\b/.test(
     q,
   );
 
-  const metric: QueryIntent["metric"] = /\bmedian\b/.test(q)
+  const metric: AggregateIntent["metric"] = /\bmedian\b/.test(q)
     ? "median"
     : /\bhighest|max(imum)?\b/.test(q)
       ? "max"

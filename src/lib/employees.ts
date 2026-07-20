@@ -36,10 +36,11 @@ function buildWhere(filter: EmployeeFilter) {
   if (filter.department) where.department = filter.department;
   if (filter.level) where.level = filter.level;
   if (filter.search) {
+    // mode: "insensitive" — Postgres `contains` is case-sensitive by default
     where.OR = [
-      { name: { contains: filter.search } },
-      { email: { contains: filter.search } },
-      { jobTitle: { contains: filter.search } },
+      { name: { contains: filter.search, mode: "insensitive" } },
+      { email: { contains: filter.search, mode: "insensitive" } },
+      { jobTitle: { contains: filter.search, mode: "insensitive" } },
     ];
   }
   return where;
@@ -83,6 +84,41 @@ export async function getEmployee(id: string) {
     where: { id },
     include: { salaries: { orderBy: { effectiveDate: "desc" } } },
   });
+}
+
+/**
+ * Name search for the AI "lookup" intent. The name is a parameterized, case-insensitive
+ * `contains` match — read-only, capped to a handful of matches.
+ */
+export async function findEmployeesByName(
+  name: string,
+  filter?: { country?: string; department?: string; level?: string },
+  limit = 5,
+): Promise<EmployeeListItem[]> {
+  const rows = await prisma.employee.findMany({
+    where: {
+      isActive: true,
+      name: { contains: name, mode: "insensitive" },
+      ...(filter?.country && { country: filter.country }),
+      ...(filter?.department && { department: filter.department }),
+      ...(filter?.level && { level: filter.level }),
+    },
+    orderBy: { name: "asc" },
+    take: limit,
+    include: { salaries: { where: { isCurrent: true }, take: 1 } },
+  });
+  return rows.map((e) => ({
+    id: e.id,
+    name: e.name,
+    email: e.email,
+    country: e.country,
+    department: e.department,
+    jobTitle: e.jobTitle,
+    level: e.level,
+    hireDate: e.hireDate,
+    salary: e.salaries[0]?.amount ?? null,
+    currency: e.salaries[0]?.currency ?? null,
+  }));
 }
 
 /** All current salary rows in the minimal shape the aggregation engine needs. */

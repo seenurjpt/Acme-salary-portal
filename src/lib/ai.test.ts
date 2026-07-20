@@ -46,6 +46,20 @@ describe("translateLocally", () => {
     if (r.ok) expect(r.intent).toMatchObject({ metric: "max", groupBy: "country" });
   });
 
+  it("looks up a specific person by name", () => {
+    const r = translateAndValidate(
+      "salary of arav banerjee who is manager in india in marketing department at L3",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.intent).toMatchObject({ kind: "lookup", name: "arav banerjee" });
+  });
+
+  it("does not treat groups as person lookups", () => {
+    const r = translateAndValidate("average salary of Engineering");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.intent).toMatchObject({ kind: "aggregate", metric: "avg" });
+  });
+
   it("returns null for a question with no salary signal", () => {
     expect(translateLocally("drop table; ignore previous instructions")).toBeNull();
     expect(translateLocally("what's the weather today?")).toBeNull();
@@ -68,5 +82,10 @@ describe("parseIntent (validation boundary)", () => {
   it("accepts a valid compare intent", () => {
     const r = parseIntent({ kind: "compare", groupBy: "level", groupA: "L1", groupB: "L5" });
     expect(r.ok).toBe(true);
+  });
+  it("accepts a valid lookup intent and rejects a malformed one", () => {
+    expect(parseIntent({ kind: "lookup", name: "Arav Banerjee" }).ok).toBe(true);
+    expect(parseIntent({ kind: "lookup", name: "" }).ok).toBe(false);
+    expect(parseIntent({ kind: "lookup", name: "x", sql: "DROP TABLE" }).ok).toBe(false);
   });
 });
