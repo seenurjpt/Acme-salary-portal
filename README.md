@@ -4,7 +4,7 @@ Web software for an HR Manager to **manage salary data for 10,000 employees acro
 multiple countries** and **answer questions about how the org pays people** — replacing an
 error-prone spreadsheet workflow.
 
-Built with Next.js (App Router) + TypeScript, Prisma + SQLite, and a small set of
+Built with Next.js (App Router) + TypeScript, Prisma + Postgres (Neon), and a small set of
 hand-built UI components. See [`REQUIREMENTS.md`](REQUIREMENTS.md),
 [`ARCHITECTURE.md`](ARCHITECTURE.md), [`PLAN.md`](PLAN.md), and
 [`docs/`](docs/) for the thinking behind it.
@@ -14,7 +14,8 @@ hand-built UI components. See [`REQUIREMENTS.md`](REQUIREMENTS.md),
   add / edit / soft-delete with **salary history** and a full **audit trail**.
 - **Analytics dashboard** — headcount, avg/median/min/max pay by country, department, and
   level; pay-band table; salary distribution. All figures normalized to **USD** for
-  cross-country comparison.
+  cross-country comparison, plus an app-wide **display-currency switcher** to view every
+  number in the currency of your choice.
 - **Ask (natural-language Q&A)** — ask *"average salary in Germany"* or *"compare
   Engineering and Sales"* in plain English. Powered by Gemini when an API key is present,
   with a **deterministic local parser fallback** so it works offline.
@@ -23,11 +24,15 @@ hand-built UI components. See [`REQUIREMENTS.md`](REQUIREMENTS.md),
 ## Quick start
 ```bash
 npm install
-cp .env.example .env          # defaults work out of the box (SQLite, local AI fallback)
+cp .env.example .env          # then set DATABASE_URL to any Postgres (free Neon tier: neon.tech)
 npm run setup                 # prisma generate + db push + seed 10,000 employees
 npm run dev                   # http://localhost:3000
 ```
 Log in with **hr@acme.com / password123** (configurable in `.env`).
+
+> **No Postgres handy?** The schema is portable: set `provider = "sqlite"` in
+> `prisma/schema.prisma` and `DATABASE_URL="file:./dev.db"` for a fully-offline run (also
+> noted in `.env.example`). Everything else — including the AI local fallback — works offline.
 
 ## Scripts
 | Command | What it does |
@@ -60,7 +65,7 @@ parser and intent validation). They are fast, deterministic, and offline.
 prisma/            schema + deterministic 10k seed
 src/lib/           domain core: aggregation engine, analytics, query-intent, ai, employees (data access)
 src/app/api/       REST endpoints (employees, analytics, ask, auth)
-src/app/           pages: dashboard (/), employees, ask, login
+src/app/           pages: dashboard (/), employees, login — plus a floating Ask panel on every page
 src/components/    UI primitives, nav, charts
 docs/              AI usage log + trade-off notes
 ```

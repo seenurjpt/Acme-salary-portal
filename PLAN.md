@@ -61,3 +61,23 @@ tells the story the assessment asks for. Estimated ~1.5–2 focused days.
 - *10k perf* → DB-side aggregation + indexes + pagination (never load all rows client-side).
 - *AI non-determinism/safety* → LLM only emits a whitelisted intent; real work is deterministic + tested.
 - *Deploy + SQLite on Vercel* → note the Postgres/Turso swap; Prisma makes it a config change.
+
+---
+
+## Outcome — what shipped vs. this plan
+All phases landed; the git history follows the phase order above. Divergences, decided
+mid-build (rationale in `docs/TRADEOFFS.md`):
+
+- **shadcn/ui → hand-built primitives** (`src/components/ui.tsx`) — the console needed ~8
+  small components; zero UI dependencies beat a component library here.
+- **Claude → Gemini** for NL → intent — a free-tier key means the AI path is runnable
+  without billing; the validated-intent safety design is unchanged.
+- **SQLite → Neon Postgres** — the app is deployed on Vercel, which needs a hosted DB.
+  SQLite remains a documented offline fallback (see `.env.example`).
+- **`/api/query` folded into `/api/ask`** — a separate execute-intent endpoint added surface
+  without value; translation and execution live behind one route.
+- **Added beyond plan** — floating Ask panel on every page, app-wide display-currency
+  switcher, region-realistic seeded names, employee **lookup** intent for the Ask feature.
+- **Cut, knowingly** — API-integration, component, and e2e tests. Unit tests concentrate on
+  the aggregation engine and the AI boundary; the reasoning is in `docs/TRADEOFFS.md` →
+  Testing.

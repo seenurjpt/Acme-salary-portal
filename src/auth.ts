@@ -12,6 +12,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  callbacks: {
+    // Used by the middleware: without this, `auth` as middleware only attaches the
+    // session and never blocks — pages would render for signed-out visitors.
+    authorized: ({ auth }) => !!auth?.user,
+  },
   providers: [
     Credentials({
       credentials: {

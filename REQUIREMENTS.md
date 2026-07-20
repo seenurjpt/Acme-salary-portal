@@ -37,7 +37,7 @@ The HR Manager needs to:
 - **Real-time collaboration.** Single-user tool for this exercise.
 
 ## Non-Functional Requirements
-- Table & analytics must stay responsive at **10k rows** (indexed queries, DB-side aggregation, pagination — never load all rows into the client).
+- Table & analytics must stay responsive at **10k rows** (indexed queries, server-side aggregation, pagination — never ship all rows to the client).
 - AI Q&A must be **safe** (read-only, query whitelist/validation — no arbitrary SQL execution) and **degradable** (works, with a clear message, if the LLM is unavailable).
 - Core aggregation logic is **pure/unit-testable** and shared by both the dashboard and the AI layer.
 

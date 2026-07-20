@@ -40,14 +40,25 @@ center of gravity of the codebase.
 **AI emits a validated intent, never SQL.**
 The single most important safety decision — see `docs/AI_USAGE.md`. Trade-off: the local
 parser covers common questions but not every phrasing. That's acceptable because (a) with an
-API key Claude handles the long tail, and (b) unrecognized questions fail safe with a helpful
+API key Gemini handles the long tail, and (b) unrecognized questions fail safe with a helpful
 "try rephrasing" message rather than a wrong answer.
 
-**DB-side aggregation & pagination for 10k rows.**
-Filtering and counting happen in SQLite with indexes; the client never loads all rows. The
+**Server-side pagination; in-memory aggregation at 10k rows.**
+Filtering and counting happen in Postgres with indexes; the client never loads all rows. The
 dashboard reads current-salary rows once and aggregates in memory — fine at 10k; if this grew
 to millions, the aggregations would move into SQL `GROUP BY` (the service boundary makes that
-a localized change).
+a localized change). The full analysis is in `ARCHITECTURE.md` → *Performance considerations*.
+
+**Gemini over the planned Claude for NL → intent.**
+The plan said Anthropic SDK; the build shipped Gemini via a plain REST call. Driver: anyone
+reviewing this can exercise the real AI path on a free-tier key with zero billing setup, and
+it's one less SDK dependency. The safety design is provider-agnostic and the seam is a single
+function (`translateWithGemini`) — swapping providers is a localized change.
+
+**Neon Postgres over the planned SQLite.**
+SQLite was planned for zero-setup local dev, but the app is deployed (Vercel), which needs a
+durable hosted DB — and dev/prod parity beats file-DB convenience. The schema stays portable;
+the fully-offline SQLite fallback is a two-line switch documented in `.env.example`.
 
 ## Testing
 
